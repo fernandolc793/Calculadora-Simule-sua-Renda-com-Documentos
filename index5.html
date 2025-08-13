@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Renda Familiar e Documentos da UFSC</title>
+    <!-- Inclui Tailwind CSS para estilização -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Define a fonte Inter para todo o corpo do documento */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Cor de fundo suave */
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Alinha ao topo para permitir rolagem */
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        /* Estilos para o contêiner principal da calculadora */
+        .calculator-container {
+            background-color: #ffffff;
+            padding: 2.5rem;
+            border-radius: 1.5rem; /* Cantos mais arredondados */
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); /* Sombra mais pronunciada */
+            max-width: 900px; /* Largura máxima para desktop */
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        /* Estilos para cada linha de familiar (agora um "cartão") */
+        .family-member-card {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem; /* Espaçamento interno menor para compactar o cartão */
+            padding: 0.75rem; /* Padding reduzido para diminuir o tamanho do cartão */
+            background-color: #f9fafb;
+            border-radius: 0.75rem;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+        /* Estilos para cada fonte de renda dentro do cartão do familiar */
+        .income-source-block {
+            display: grid;
+            grid-template-columns: repeat(1, 1fr); /* Padrão mobile */
+            gap: 0.75rem; /* Espaçamento interno menor */
+            padding: 0.75rem; /* Padding reduzido */
+            background-color: #ffffff;
+            border-radius: 0.5rem;
+            border: 1px dashed #d1d5db;
+            position: relative; /* Para posicionar o botão de remover */
+        }
+        /* Responsividade para fontes de renda: 2 colunas em telas médias, 3 em grandes */
+        @media (min-width: 640px) { /* sm */
+            .income-source-block {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        @media (min-width: 1024px) { /* lg */
+            .income-source-block {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        .income-source-block .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        .income-source-block .income-inputs {
+            grid-column: 1 / -1; /* Ocupa todas as colunas para os inputs de renda */
+            display: grid;
+            grid-template-columns: repeat(1, 1fr);
+            gap: 0.75rem; /* Espaçamento menor */
+        }
+        @media (min-width: 640px) {
+            .income-source-block .income-inputs {
+                grid-template-columns: repeat(3, 1fr); /* 3 colunas para os meses em telas maiores */
+            }
+        }
+        .income-source-block .average-display {
+            grid-column: 1 / -1; /* Ocupa todas as colunas para a média */
+            text-align: right;
+            font-weight: 600;
+            color: #10b981; /* Cor verde para a média */
+        }
+
+        /* Estilos para os rótulos e inputs/selects */
+        label {
+            font-weight: 600;
+            color: #4b5563;
+            margin-bottom: 0.25rem;
+            display: block; /* Garante que o rótulo ocupe sua própria linha */
+        }
+        input[type="text"],
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 0.6rem; /* Padding reduzido para inputs */
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            font-size: 0.9rem; /* Fonte um pouco menor */
+            color: #374151;
+            background-color: #ffffff;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05); /* Sombra interna sutil */
+        }
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+        /* Estilos para os botões */
+        button {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+        .btn-primary {
+            background-color: #3b82f6; /* Azul */
+            color: #ffffff;
+        }
+        .btn-primary:hover {
+            background-color: #2563eb; /* Azul mais escuro */
+        }
+        /* Novo estilo para o botão de calcular (verde) */
+        .btn-calculate {
+            background-color: #10b981; /* Verde */
+            color: #ffffff;
+        }
+        .btn-calculate:hover {
+            background-color: #059669; /* Verde mais escuro */
+        }
+        /* Estilos para as seções de resultado e documentos */
+        .result-section, .documents-section {
+            background-color: #f9fafb;
+            padding: 1rem; /* Reduzido de 1.5rem para 1rem */
+            border-radius: 0.75rem;
+            border: 1px solid #e5e7eb;
+            margin-top: 1.5rem;
+            page-break-inside: avoid; /* Para evitar quebras de página no PDF */
+        }
+        .result-section h2, .documents-section h2 {
+            font-size: 1.25rem; /* Reduzido de 1.5rem para 1.25rem */
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 0.75rem; /* Reduzido de 1rem para 0.75rem */
+        }
+        .documents-section ul {
+            list-style: disc;
+            padding-left: 1.25rem; /* Reduzido de 1.5rem para 1.25rem */
+        }
+        .documents-section li {
+            margin-bottom: 0.3rem; /* Reduzido de 0.5rem para 0.3rem */
+            color: #4b5563;
+            font-size: 0.9rem; /* Adicionado para reduzir o tamanho da fonte */
+            line-height: 1.3; /* Adicionado para reduzir o espaçamento entre linhas */
+        }
+        .result-section p {
+            font-size: 0.9rem; /* Adicionado para reduzir o tamanho da fonte */
+            line-height: 1.3; /* Adicionado para reduzir o espaçamento entre linhas */
+            margin-bottom: 0.3rem; /* Reduzido para menos espaçamento */
+        }
+        .result-section p:last-child {
+            margin-bottom: 0; /* Remove margin-bottom do último parágrafo */
+        }
+
+        /* Estilo para o botão de remover familiar (diminuído) */
+        .remove-member-btn {
+            background-color: #ef4444; /* Vermelho */
+            color: white;
+            padding: 0.3rem 0.6rem; /* Padding ainda mais reduzido */
+            border-radius: 0.4rem; /* Borda um pouco menor */
+            font-weight: 600;
+            font-size: 0.75rem; /* Tamanho da fonte menor (xs) */
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+        }
+        .remove-member-btn:hover {
+            background-color: #dc2626; /* Vermelho mais escuro */
+        }
+        /* Estilo para o botão de remover fonte de renda */
+        .remove-source-btn {
+            background-color: #f97316; /* Laranja */
+            color: white;
+            padding: 0.3rem 0.6rem;
+            border-radius: 0.3rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+        }
+        .remove-source-btn:hover {
+            background-color: #ea580c; /* Laranja mais escuro */
+        }
+        /* Estilo para o botão de adicionar fonte de renda (agora verde e menor) */
+        .btn-add-source {
+            background-color: #10b981; /* Verde */
+            color: white;
+            padding: 0.3rem 0.6rem; /* Padding reduzido, igual ao remover fonte */
+            border-radius: 0.4rem; /* Borda um pouco menor */
+            font-weight: 600;
+            font-size: 0.75rem; /* Tamanho da fonte menor (xs) */
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+        }
+        .btn-add-source:hover {
+            background-color: #059669; /* Verde mais escuro */
+        }
+
+        /* Estilo para o cabeçalho do cartão do familiar */
+        .family-member-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px dashed #d1d5db;
+        }
+        .family-member-header h3 {
+            font-size: 1.1rem; /* Título do membro um pouco menor */
+            font-weight: 700;
+            color: #374151;
+        }
+        /* Ajuste para os campos Nome e Parentesco ficarem lado a lado e responsivos */
+        .name-parentesco-group {
+            display: grid;
+            grid-template-columns: repeat(1, 1fr);
+            gap: 0.75rem; /* Espaçamento menor */
+            margin-bottom: 0.5rem; /* Reduz o espaço abaixo deste grupo */
+        }
+        @media (min-width: 640px) {
+            .name-parentesco-group {
+                grid-template-columns: 0.7fr 1fr; /* Nome um pouco menor, Parentesco um pouco maior */
+            }
+        }
+        /* Reduz o espaçamento entre o grupo de nome/parentesco e o container de fontes de renda */
+        .family-member-card #income-sources-container {
+            margin-top: 0.5rem; /* Reduz o margin-top */
+        }
+
+        /* Novo estilo para o botão "Adicionar Membro da Família" quando é grande */
+        .btn-add-member-large {
+            background-color: #3b82f6; /* Azul, um pouco diferente do PDF para distinção */
+            color: #ffffff;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: fit-content; /* Ajusta a largura ao conteúdo */
+            margin: 0.5rem auto 0.5rem auto; /* Centraliza e adiciona margem superior e inferior menores */
+        }
+        .btn-add-member-large:hover {
+            background-color: #2563eb; /* Azul mais escuro */
+        }
+        .btn-add-member-large:disabled {
+            background-color: #93c5fd; /* Azul mais claro quando desabilitado */
+            cursor: not-allowed;
+        }
+
+        /* Ajustes para o título principal e descrição */
+        .calculator-container h1 {
+            font-size: 1.75rem; /* Mantido */
+            margin-bottom: 0.25rem; /* Reduzido ainda mais */
+        }
+        .calculator-container p.text-gray-600 {
+            font-size: 0.85rem; /* Mantido */
+            margin-bottom: 0.75rem; /* Mantido */
+            line-height: 1.3; /* Mantido */
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator-container" id="calculator-container">
+        <h1 class="text-3xl font-extrabold text-gray-900 text-center mb-6">Simulador de Renda Familiar e Documentos da UFSC</h1>
+        <p class="text-gray-600 text-center mb-8">Este simulador é uma ferramenta de apoio para pessoas candidatas que buscam vagas destinadas às cotas de baixa renda. Para evitar candidaturas inadequadas e indeferimentos, utilize-o para simular a COMPOSIÇÃO FAMILIAR, a RENDA e os DOCUMENTOS que precisam ser entregues para comprovar a cota, verificando se você se enquadra nela antes da inscrição. É fundamental consultar o edital e/ou portaria do seu processo seletivo e a documentação oficial para confirmar todos os critérios, regras e meses de referência.</p>
+
+        <div class="salario-minimo-input-group">
+            <label for="salario-minimo-referencia" class="text-lg font-semibold text-gray-800">Salário Mínimo de Referência (R$):</label>
+            <input type="number" id="salario-minimo-referencia" value="" min="0" step="0.01"
+                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Ex: 1412.00">
+            <p class="text-sm text-gray-500">Insira o valor do salário mínimo utilizado como referência no edital/portaria do seu processo seletivo.</p>
+        </div>
+
+        <div id="familia-container" class="flex flex-col gap-4">
+            <!-- Cartões dos familiares serão adicionados aqui via JavaScript -->
+        </div>
+
+        <!-- Botão Adicionar Membro da Família movido para esta posição -->
+        <button onclick="adicionarFamiliar()" class="btn-add-member-large">Adicionar Membro da Família</button>
+
+        <div class="flex flex-col sm:flex-row gap-4 justify-center mt-6">
+            <button onclick="calcular()" class="btn-calculate">Calcular Renda e Documentos</button>
+        </div>
+
+        <div id="resultado-calculo" class="result-section hidden"></div>
+        <div id="lista-documentos" class="documents-section hidden"></div>
+    </div>
+
+    <script>
+        // Variáveis globais
+        let familiaresCount = 0;
+        const incomeSourceCounters = {};
+
+        // Mapeamento de profissões para documentos necessários, conforme o edital.
+        const documentosPorProfissao = {
+            'trabalhadores_assalariados': [
+                "Contracheques dos meses de referência (considerar valor bruto, somando horas extras, insalubridade, adicional noturno).",
+                "Documento de Rescisão do Contrato de Trabalho (no caso de demissão dentro do prazo de análise)."
+            ],
+            'autonomos_profissionais_liberais': [
+                "Declaração de Rendimentos Mensais (Formulário II), informando a atividade e renda média mensal dos meses de referência, além de outras rendas (pensão, aposentadoria, etc.) quando houver.",
+                "Quaisquer comprovantes de recebimento de valores por serviços prestados, se houver.",
+                "Guias de recolhimento ao INSS com comprovante de pagamento dos meses de referência, compatíveis com a renda declarada, se houver.",
+                "DECORE - Declaração Comprobatória de Percepção de Rendimentos, emitido por contador ou escritório contábil, devendo constar, no mínimo, as informações dos meses de referência, referentes à entrada bruta de recursos financeiros do empreendimento e os pagamentos efetuados mensalmente, incluindo o pró-labore e participação nos resultados, se houver.",
+                "Livro caixa ou demonstrativos de entradas e saídas mensais (Formulário VII), informando a atividade e a renda média mensal dos meses de referência."
+            ],
+            'motoristas_aplicativo': [
+                "Extrato de todas as contas bancárias.",
+                "Comprovantes de recebimento de valores por serviços prestados no aplicativo.",
+                "Declaração do Imposto de Renda.",
+                "Observação: Será utilizado como renda 60% do rendimento bruto total recebido pelo aplicativo."
+            ],
+            'trabalhadores_informais_bicos': [
+                "Declaração de Rendimentos Mensais (Formulário II), informando a atividade e a renda média mensal dos meses de referência, além de outras rendas (pensão, aposentadoria, etc.), quando houver.",
+                "Quaisquer comprovantes de recebimento de valores por serviços prestados, se houver.",
+                "Guias de recolhimento ao INSS com comprovante de pagamento dos meses de referência, compatíveis com a renda declarada, quando houver.",
+                "Livro caixa ou demonstrativos de entradas e saídas mensais (Formulário VII), informando a atividade e a renda média mensal dos meses de referência."
+            ],
+            'aposentados_pensionistas_auxilio_previdenciario': [
+                "Comprovante de proventos referente aos meses de referência, disponibilizado no endereço eletrônico: https://www.inss.gov.br/ ou diretamente nos postos de atendimento do INSS.",
+                "Observação: O valor a ser informado deve ser da renda bruta mensal. Caso o órgão pagador for outro instituto/fundo de previdência, deverá ser apresentada a folha de pagamento do benefício."
+            ],
+            'recebedores_pensao_ajuda_financeira': [
+                "RG e CPF daquele que paga ou ajuda.",
+                "Sentença judicial com a especificação do valor OU, caso não haja processo judicial, apresentar declaração, identificando a natureza e o valor, assinada pela pessoa que fornece a ajuda, acompanhada de um documento oficial de identificação com foto e assinatura.",
+                "Comprovantes de recebimento referente aos meses de referência.",
+                "Declaração de Pensão Alimentícia (Formulário VIII). Observação: Caso não receba pensão alimentícia, assinalar no mesmo formulário que não recebe pensão."
+            ],
+            'estagiarios_bolsistas': [
+                "Contrato de estágio ou termo de compromisso de bolsa.",
+                "Em caso de recebimento de bolsa estudantil e benefícios afins, o candidato deverá apresentar declaração ou documento que comprove a natureza do valor recebido.",
+                "Observação: Será considerado no cálculo de renda bruta familiar o valor das bolsas recebidas, exceto aquelas de natureza assistencial."
+            ],
+            'proprietarios_socios_empresas_microempresas': [
+                "Declaração do Imposto de Renda de Pessoa Jurídica (IRPJ) mais atual, completa, com recibo de entrega.",
+                "Declaração do SIMPLES mais atual, completo, com recibo de entrega.",
+                "DECORE - Declaração Comprobatória de Percepção de Rendimentos, emitido por contador ou escritório contábil, devendo constar, no mínimo, as informações dos meses de referência, referentes à entrada bruta de recursos financeiros do empreendimento e os pagamentos efetuados mensalmente, incluindo o pró-labore e participação nos resultados, se houver.",
+                "Pró-labore recebido como sócio.",
+                "Livro caixa ou demonstrativos de entradas e saídas mensais (Formulário VII), informando a atividade e a renda média mensal dos meses de referência."
+            ],
+            'microempreendedores_individuais_mei': [
+                "Declaração do SIMPLES mais atual, completo, com recibo de entrega. (A declaração pode ser realizada por meio da página: Simples Nacional).",
+                "Livro caixa ou demonstrativos de entradas e saídas mensais (Formulário VII), com firma reconhecida em cartório do declarante, informando a atividade e a renda média mensal dos meses de referência."
+            ],
+            'trabalhadores_atividade_rural': [
+                "Movimentação do Bloco de Notas do ano anterior emitido por órgão da prefeitura municipal onde o trabalhador registrou seu bloco de notas ou na Secretaria da Fazenda (Exatoria).",
+                "Se o trabalhador rural não possuir bloco de notas ou não tiver realizado movimentação no ano anterior, apresentar negativa de produção emitida por esses mesmos órgãos.",
+                "Declaração do Imposto sobre a Propriedade Territorial Rural (ITR) mais atual.",
+                "Escrituração Contábil Fiscal (ECF) mais atual, completa, com recibo de entrega, ou SIMPLES mais atual, completo, com recibo de entrega, se houver.",
+                "Contrato de arrendamento, se houver."
+            ],
+            'desempregados_pessoas_do_lar': [
+                "Comprovante de recebimento do Seguro Desemprego (referente aos meses de referência), se houver.",
+                "Declaração de não percepção de rendimentos (Formulário IV)."
+            ],
+            'rendimentos_aluguel_arrendamento': [
+                "Contrato(s) de locação ou arrendamento(s) devidamente registrado(s) em cartório, quando houver, acompanhado do recibo dos meses de referência.",
+                "Livro caixa ou demonstrativos de entradas e saídas mensais (Formulário VII), informando a atividade e a renda média mensal do meses de referência, bem como outras rendas (pensão, aposentadoria, etc.) se houver."
+            ],
+            'pescadores': [
+                "Cópia da Carteira de pescador profissional.",
+                "Declaração do sindicato, associação ou similar, especificando a renda mensal recebida, ou documento correspondente, ou Declaração de Rendimentos (Formulário II) informando a atividade e a renda média mensal do meses de referência.",
+                "Livro caixa ou demonstrativos de entradas e saídas mensais (Formulário VII), informando a atividade e a renda média mensal do meses de referência."
+            ],
+            'influenciadores_digitais_criadores_conteudo_streamers': [
+                "Declaração de Rendimentos Mensais (Formulário II), informando a plataforma onde atua, a atividade e a renda média mensal dos meses de referência, além de outras rendas (pensão, aposentadoria, etc.), quando houver.",
+                "Comprovantes de recebimento dos meses de referência, como: Extratos bancários ou prints de contas em plataformas digitais com entrada de recursos (YouTube, Twitch, TikTok, Kwai, Instagram, Hotmart, etc.); Recibos de transferências, depósitos ou pagamentos de parcerias/publicidade.",
+                "Comprovante de monetização, se houver, como: Comprovantes de pagamento de plataformas (AdSense, Twitch, etc.); Termos de parceria ou contratos de patrocínio, quando existirem.",
+                "Livro caixa ou demonstrativo de entradas e saídas mensais (Formulário VII), informando a atividade exercida e a média de rendimentos mensais dos meses de referência, com detalhamento das entradas (valores recebidos) e saídas (custos com produção, edição, equipamentos, internet, etc.).",
+                "Inscrição no MEI ou outro registro jurídico, caso o criador de conteúdo atue formalmente."
+            ],
+            'crianca_adolescente': [
+                "Documento de identificação (Certidão de Nascimento ou RG).",
+                "Declaração de pensão alimentícia (se houver).",
+                "Extratos de contas bancárias (se houver).",
+                "Observação: Verifique seu edital/portaria para confirmar a documentação básica exigida."
+            ]
+        };
+
+        // Documentação geral fixa para todos os membros da família (exceto Criança ou Adolescente)
+        const documentacaoGeral = [
+            "Documentos de identificação (RG, CPF ou outro documento oficial com foto).",
+            "Comprovante de residência atualizado (conta de água, luz, telefone, etc.).",
+            "Carteira de trabalho física ou digital (páginas de identificação, contratos de trabalho e anotações).",
+            "Extratos bancários de todas as contas bancárias dos meses de referência do seu edital.",
+            "Declaração do Imposto de Renda do ano de referência do seu edital ou declaração de isenção, caso não seja declarante.",
+            "Observação: Verifique seu edital/portaria para confirmar a documentação geral exigida."
+        ];
+
+        /**
+         * Adiciona uma nova caixa de fonte de renda para um familiar específico.
+         * @param {number} memberId O ID do familiar ao qual adicionar a fonte de renda.
+         */
+        function adicionarFonteRenda(memberId) {
+            incomeSourceCounters[memberId]++;
+            const sourceId = incomeSourceCounters[memberId]; // ID único para esta fonte de renda
+
+            const container = document.getElementById(`income-sources-container-${memberId}`);
+            const incomeSourceBlock = document.createElement('div');
+            incomeSourceBlock.classList.add('income-source-block');
+            incomeSourceBlock.setAttribute('data-source-id', sourceId); // ID para fácil remoção
+
+            incomeSourceBlock.innerHTML = `
+                <button onclick="removerFonteRenda(${memberId}, ${sourceId})" class="remove-source-btn">Remover Fonte</button>
+                <div class="input-group">
+                    <label for="profissao-familiar-${memberId}-${sourceId}">Profissão:</label>
+                    <select id="profissao-familiar-${memberId}-${sourceId}"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="">Selecione a Profissão</option>
+                        <option value="trabalhadores_assalariados">Trabalhadores Assalariados</option>
+                        <option value="autonomos_profissionais_liberais">Autônomos / Profissionais Liberais</option>
+                        <option value="motoristas_aplicativo">Motoristas de Aplicativo</option>
+                        <option value="trabalhadores_informais_bicos">Trabalhadores com Rendimentos Informais (Bicos)</option>
+                        <option value="aposentados_pensionistas_auxilio_previdenciario">Aposentados, Pensionistas ou em Auxílio Previdenciário</option>
+                        <option value="recebedores_pensao_ajuda_financeira">Recebedores de Pensão Alimentícia ou Ajuda Financeira</option>
+                        <option value="estagiarios_bolsistas">Estagiários ou Bolsistas</option>
+                        <option value="proprietarios_socios_empresas_microempresas">Proprietários/Sócios de Empresas e Microempresas</option>
+                        <option value="microempreendedores_individuais_mei">Microempreendedores Individuais (MEI)</option>
+                        <option value="trabalhadores_atividade_rural">Trabalhadores em Atividade Rural</option>
+                        <option value="desempregados_pessoas_do_lar">Desempregados e Pessoas do Lar</option>
+                        <option value="rendimentos_aluguel_arrendamento">Rendimentos de Aluguel ou Arrendamento de Bens</option>
+                        <option value="pescadores">Pescadores</option>
+                        <option value="influenciadores_digitais_criadores_conteudo_streamers">Influenciadores Digitais, Criadores de Conteúdo e Streamers</option>
+                        <option value="crianca_adolescente">Criança ou Adolescente</option>
+                    </select>
+                </div>
+                <div class="income-inputs">
+                    <div class="input-group">
+                        <label for="renda-mes1-${memberId}-${sourceId}">Mês de Ref. 1 (R$):</label>
+                        <input type="number" id="renda-mes1-${memberId}-${sourceId}" value="0" min="0" step="0.01"
+                               oninput="calcularMediaRenda(${memberId}, ${sourceId})"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div class="input-group">
+                        <label for="renda-mes2-${memberId}-${sourceId}">Mês de Ref. 2 (R$):</label>
+                        <input type="number" id="renda-mes2-${memberId}-${sourceId}" value="0" min="0" step="0.01"
+                               oninput="calcularMediaRenda(${memberId}, ${sourceId})"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div class="input-group">
+                        <label for="renda-mes3-${memberId}-${sourceId}">Mês de Ref. 3 (R$):</label>
+                        <input type="number" id="renda-mes3-${memberId}-${sourceId}" value="0" min="0" step="0.01"
+                               oninput="calcularMediaRenda(${memberId}, ${sourceId})"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                </div>
+                <!-- Texto alterado para "Renda de 3 meses deverá ser comprovada." e adicionado whitespace-nowrap -->
+                <p class="text-sm italic text-gray-500 mt-2 whitespace-nowrap">Renda de 3 meses deverá ser comprovada.</p>
+                <div class="average-display">
+                    Média dos 3 meses: <span id="media-renda-${memberId}-${sourceId}">R$ 0.00</span>
+                </div>
+            `;
+            container.appendChild(incomeSourceBlock);
+        }
+
+        /**
+         * Adiciona uma nova linha (cartão) para um familiar no formulário.
+         */
+        function adicionarFamiliar() {
+            familiaresCount++;
+            incomeSourceCounters[familiaresCount] = 0; // Inicializa o contador de fontes de renda para este familiar
+
+            const container = document.getElementById('familia-container');
+            const memberCard = document.createElement('div');
+            memberCard.classList.add('family-member-card');
+            memberCard.setAttribute('data-member-id', familiaresCount);
+
+            memberCard.innerHTML = `
+                <div class="family-member-header">
+                    <h3 class="text-lg font-semibold text-gray-800">Membro da Família ${familiaresCount}</h3>
+                    <button onclick="removerFamiliar(${familiaresCount})" class="remove-member-btn">Remover Membro</button>
+                </div>
+                <div class="name-parentesco-group mb-2">
+                    <div class="input-group">
+                        <label for="nome-familiar-${familiaresCount}">Nome (Opcional):</label>
+                        <input type="text" id="nome-familiar-${familiaresCount}" placeholder="Ex: João Silva"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <p class="text-xs text-gray-500 mt-1">Insira-se primeiro, depois seus familiares.</p>
+                    </div>
+                    <div class="input-group">
+                        <label for="parentesco-familiar-${familiaresCount}">Parentesco:</label>
+                        <input type="text" id="parentesco-familiar-${familiaresCount}" placeholder="Ex: candidato, pai, mãe, cônjuge"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                </div>
+                <div id="income-sources-container-${familiaresCount}" class="flex flex-col gap-3 mt-2">
+                    <!-- Fontes de renda serão adicionadas aqui via JavaScript -->
+                </div>
+                <div class="flex flex-col items-end mt-1">
+                    <p class="text-xs text-gray-500 whitespace-nowrap">Só se o familiar tiver duas fontes de renda.</p>
+                    <button onclick="adicionarFonteRenda(${familiaresCount})" class="btn-add-source">Adicionar + fontes</button>
+                </div>
+            `;
+            container.appendChild(memberCard);
+
+            // Adiciona a primeira fonte de renda automaticamente
+            adicionarFonteRenda(familiaresCount);
+        }
+
+        /**
+         * Remove um cartão de familiar do formulário.
+         * @param {number} id O ID do familiar a ser removido.
+         */
+        function removerFamiliar(id) {
+            const memberCard = document.querySelector(`.family-member-card[data-member-id="${id}"]`);
+            if (memberCard) {
+                memberCard.remove();
+                delete incomeSourceCounters[id]; // Limpa o contador para o familiar removido
+            }
+        }
+
+        /**
+         * Remove uma fonte de renda específica de um familiar.
+         * @param {number} memberId
+         * @param {number} sourceId
+         */
+        function removerFonteRenda(memberId, sourceId) {
+            const incomeSourceBlock = document.querySelector(`.family-member-card[data-member-id="${memberId}"] .income-source-block[data-source-id="${sourceId}"]`);
+            if (incomeSourceBlock) {
+                incomeSourceBlock.remove();
+            }
+        }
+
+        /**
+         * Calcula e exibe a média da renda para uma fonte de renda específica.
+         * @param {number} memberId
+         * @param {number} sourceId
+         */
+        function calcularMediaRenda(memberId, sourceId) {
+            const rendaMes1 = parseFloat(document.getElementById(`renda-mes1-${memberId}-${sourceId}`).value) || 0;
+            const rendaMes2 = parseFloat(document.getElementById(`renda-mes2-${memberId}-${sourceId}`).value) || 0;
+            const rendaMes3 = parseFloat(document.getElementById(`renda-mes3-${memberId}-${sourceId}`).value) || 0;
+
+            const media = (rendaMes1 + rendaMes2 + rendaMes3) / 3;
+            document.getElementById(`media-renda-${memberId}-${sourceId}`).textContent = `R$ ${media.toFixed(2)}`;
+        }
+
+        /**
+         * Calcula a renda per capita e gera a lista de documentos.
+         */
+        function calcular() {
+            let rendaTotalFamiliar = 0;
+            let totalMembrosConsiderados = 0;
+            const documentosPorFamiliar = []; // Para armazenar documentos separados por familiar
+
+            const salarioMinimoReferencia = parseFloat(document.getElementById('salario-minimo-referencia').value) || 0;
+            if (salarioMinimoReferencia <= 0) {
+                // Em um ambiente real, você usaria um modal customizado aqui
+                alert("Por favor, insira um valor válido para o Salário Mínimo de Referência.");
+                return;
+            }
+
+            const familiarCards = document.querySelectorAll('.family-member-card');
+            if (familiarCards.length === 0) {
+                document.getElementById('resultado-calculo').classList.add('hidden');
+                document.getElementById('lista-documentos').classList.add('hidden');
+                console.error("Por favor, adicione pelo menos um membro da família para calcular.");
+                return;
+            }
+
+            familiarCards.forEach(memberCard => {
+                const memberId = memberCard.getAttribute('data-member-id');
+                const nomeFamiliar = document.getElementById(`nome-familiar-${memberId}`).value || `Membro ${memberId}`;
+                let rendaTotalDesteMembro = 0;
+                const documentosTrabalhoRendaDesteMembro = new Set(); // Documentos específicos de trabalho e renda
+                let isChildOrAdolescent = false; // Flag para verificar se é criança/adolescente
+
+                const incomeSourceBlocks = memberCard.querySelectorAll('.income-source-block');
+                if (incomeSourceBlocks.length === 0) {
+                    console.warn(`Membro ${nomeFamiliar} (ID: ${memberId}) não possui fontes de renda adicionadas.`);
+                }
+
+                incomeSourceBlocks.forEach(sourceBlock => {
+                    const sourceId = sourceBlock.getAttribute('data-source-id');
+                    const rendaMes1 = parseFloat(document.getElementById(`renda-mes1-${memberId}-${sourceId}`).value) || 0;
+                    const rendaMes2 = parseFloat(document.getElementById(`renda-mes2-${memberId}-${sourceId}`).value) || 0;
+                    const rendaMes3 = parseFloat(document.getElementById(`renda-mes3-${memberId}-${sourceId}`).value) || 0;
+
+                    const mediaRendaFonte = (rendaMes1 + rendaMes2 + rendaMes3) / 3;
+                    rendaTotalDesteMembro += mediaRendaFonte; // Soma a média de cada fonte de renda do membro
+
+                    const profissao = document.getElementById(`profissao-familiar-${memberId}-${sourceId}`).value;
+                    if (profissao === 'crianca_adolescente') {
+                        isChildOrAdolescent = true; // Define a flag se a profissão for criança/adolescente
+                    }
+                    if (documentosPorProfissao[profissao]) {
+                        documentosPorProfissao[profissao].forEach(doc => documentosTrabalhoRendaDesteMembro.add(doc));
+                    }
+                });
+
+                rendaTotalFamiliar += rendaTotalDesteMembro; // Soma a renda total de cada membro para a renda familiar
+                totalMembrosConsiderados++;
+
+                documentosPorFamiliar.push({
+                    nome: nomeFamiliar,
+                    renda: rendaTotalDesteMembro,
+                    documentosGerais: isChildOrAdolescent ? [] : documentacaoGeral, // Se for criança/adolescente, não inclui documentos gerais
+                    documentosTrabalhoRenda: Array.from(documentosTrabalhoRendaDesteMembro), // Documentos específicos de trabalho e renda
+                    isChildOrAdolescent: isChildOrAdolescent // Passa a flag para a renderização
+                });
+            });
+
+            const rendaPerCapita = totalMembrosConsiderados > 0 ? rendaTotalFamiliar / totalMembrosConsiderados : 0;
+            
+            // Mensagem de elegibilidade baseada no salário mínimo de referência (apenas 1 salário mínimo)
+            let mensagemElegibilidade = "";
+
+            if (rendaPerCapita <= salarioMinimoReferencia) {
+                mensagemElegibilidade = `<p class="text-lg text-green-600 font-bold mt-2">A renda per capita simulada está abaixo ou igual a 1 salário mínimo de referência, pode ser que você se enquadre nessa cota. Verifique o edital para confirmar a documentação e os critérios para cotas de baixa renda. Lembre-se: este é apenas um simulador. A verificação de sua renda será realizada por comissão especifica.</p>`;
+            } else {
+                mensagemElegibilidade = `<p class="text-lg text-red-600 font-bold mt-2">A renda per capita simulada está acima de 1 salário mínimo de referência, pode ser que você não se enquadre nessa cota. Verifique o edital para confirmar a documentação e os critérios para cotas de baixa renda. Lembre-se: este é apenas um simulador. A verificação de sua renda será realizada por comissão especifica.</p>`;
+            }
+
+
+            // Exibir resultados do cálculo
+            const resultadoCalcDiv = document.getElementById('resultado-calculo');
+            resultadoCalcDiv.innerHTML = `
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">Resultados da Renda:</h2>
+                <p class="text-lg text-gray-700 mb-2"><span class="font-semibold">Número de Membros Considerados:</span> <span class="text-blue-600 font-bold">${totalMembrosConsiderados}</span></p>
+                <p class="text-lg text-gray-700 mb-2"><span class="font-semibold">Renda Bruta Total da Família:</span> <span class="text-blue-600 font-bold">R$ ${rendaTotalFamiliar.toFixed(2)}</span></p>
+                <p class="text-lg text-gray-700"><span class="font-semibold">Renda Per Capita:</span> <span class="text-blue-600 font-bold">R$ ${rendaPerCapita.toFixed(2)}</span></p>
+                ${mensagemElegibilidade}
+            `;
+            resultadoCalcDiv.classList.remove('hidden');
+
+            // Exibir lista de documentos separados por familiar e por categoria
+            const listaDocsDiv = document.getElementById('lista-documentos');
+            let listaHTML = '<h2 class="text-2xl font-bold text-gray-800 mb-4">Documentos a serem entregues por Familiar:</h2>';
+            
+            if (documentosPorFamiliar.length > 0) {
+                documentosPorFamiliar.forEach(familiar => {
+                    listaHTML += `<h3 class="text-xl font-semibold text-gray-700 mt-6 mb-2">Membro: ${familiar.nome} (Renda Média Mensal: R$ ${familiar.renda.toFixed(2)})</h3>`;
+                    
+                    // Documentação Geral (condicional)
+                    if (!familiar.isChildOrAdolescent) {
+                        listaHTML += `<h4 class="text-lg font-semibold text-gray-600 mt-4 mb-2">Documentação Geral:</h4>`;
+                        listaHTML += '<ul class="list-disc pl-5 text-gray-700">';
+                        familiar.documentosGerais.forEach(doc => {
+                            listaHTML += `<li class="mb-2">${doc}</li>`;
+                        });
+                        listaHTML += '</ul>';
+                    }
+
+                    // Documentação de Trabalho e Renda OU Documentação Básica
+                    const docSectionTitle = familiar.isChildOrAdolescent ? "Documentação Básica:" : "Documentação de Trabalho e Renda:";
+                    listaHTML += `<h4 class="text-lg font-semibold text-gray-600 mt-4 mb-2">${docSectionTitle}</h4>`;
+                    if (familiar.documentosTrabalhoRenda.length > 0) {
+                        listaHTML += '<ul class="list-disc pl-5 text-gray-700">';
+                        familiar.documentosTrabalhoRenda.forEach(doc => {
+                            listaHTML += `<li class="mb-2">${doc}</li>`;
+                        });
+                        listaHTML += '</ul>';
+                    } else {
+                        listaHTML += `<p class="text-gray-600">Nenhum documento específico ${familiar.isChildOrAdolescent ? 'básico' : 'de trabalho e renda'} identificado para este membro.</p>`;
+                    }
+                });
+            } else {
+                listaHTML += '<p class="text-gray-600">Nenhum familiar adicionado ou nenhuma profissão selecionada para gerar documentos.</p>';
+            }
+            listaDocsDiv.innerHTML = listaHTML;
+            listaDocsDiv.classList.remove('hidden');
+        }
+
+        // Adiciona um familiar ao carregar a página para começar
+        window.onload = function() {
+            adicionarFamiliar();
+        };
+    </script>
+</body>
+</html>
